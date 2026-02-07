@@ -1,0 +1,5 @@
+sync:
+  services:
+    enabled: true
+  ingress:
+    enabled: true

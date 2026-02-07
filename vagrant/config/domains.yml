@@ -1,0 +1,14 @@
+# vagrant/config/domains.yml
+domains:
+  - host: gitlab.pathops.test
+    upstream: 192.168.1.12
+    port: 80
+  - host: jenkins.pathops.test
+    upstream: 192.168.1.13
+    port: 8080
+  - host: keycloak.pathops.test
+    upstream: 192.168.1.14
+    port: 80
+  - host: argocd.pathops.test
+    upstream: 192.168.1.16
+    port: 80

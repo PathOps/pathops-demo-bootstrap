@@ -1,0 +1,56 @@
+# vagrant/config/vms.yml
+project:
+  name: pathops-demo
+  ubuntu_box: "bento/ubuntu-24.04"   # podés cambiarlo por ubuntu/jammy64 si preferís
+  hostonly_network: "vboxnet0"
+  ip_cidr: "192.168.1.0/24"
+  gateway: "192.168.1.1"             # si NO tenés router en esa red (host-only), podés omitir rutas default
+  nameservers: ["1.1.1.1", "8.8.8.8"]
+
+vms:
+  - name: vm01-edge
+    hostname: edge
+    ip: 192.168.1.11
+    cpus: 1
+    memory: 1024
+    roles: ["edge"]
+
+  - name: vm02-gitlab
+    hostname: gitlab
+    ip: 192.168.1.12
+    cpus: 2
+    memory: 4096
+    disk_gb: 80
+    roles: ["gitlab"]
+
+  - name: vm03-jenkins
+    hostname: jenkins
+    ip: 192.168.1.13
+    cpus: 2
+    memory: 4096
+    disk_gb: 60
+    roles: ["jenkins", "docker"]
+
+  - name: vm04-k8s-shared
+    hostname: k8s-shared
+    ip: 192.168.1.14
+    cpus: 2
+    memory: 6144
+    disk_gb: 80
+    roles: ["k8s_shared", "microk8s"]
+
+  - name: vm05-k8s-control-plane
+    hostname: k8s-cp
+    ip: 192.168.1.15
+    cpus: 2
+    memory: 4096
+    disk_gb: 60
+    roles: ["k8s_cp", "microk8s"]
+
+  - name: vm06-k8s-apps
+    hostname: k8s-apps
+    ip: 192.168.1.16
+    cpus: 2
+    memory: 6144
+    disk_gb: 80
+    roles: ["k8s_apps", "microk8s", "observability"]
