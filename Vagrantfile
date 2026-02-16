@@ -5,6 +5,7 @@ CFG_PATH = File.join(__dir__, "vagrant", "config", "vms.yml")
 cfg = YAML.load_file(CFG_PATH)
 
 Vagrant.configure("2") do |config|
+  config.ssh.insert_key = false
   config.vm.box = cfg.dig("project", "ubuntu_box") || "bento/ubuntu-24.04"
 
   cfg["vms"].each do |vm|

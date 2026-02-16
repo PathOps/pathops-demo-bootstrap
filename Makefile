@@ -7,6 +7,13 @@ repo-zip:
 	@find . -type f -not -path '*/.*' -print | zip -@ $(REPO_ZIP)
 	@echo "✅ Created $(REPO_ZIP)"
 	@echo ""
+
+suspend:
+	vagrant suspend
+
+resume:
+	vagrant resume
+
 up:
 	vagrant up
 
