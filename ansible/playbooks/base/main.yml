@@ -1,0 +1,73 @@
+---
+- name: PathOps - Base System Setup
+  hosts: all
+  become: true
+
+  vars:
+    base_packages:
+      - curl
+      - wget
+      - git
+      - unzip
+      - htop
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - apt-transport-https
+
+  tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade system packages
+      apt:
+        upgrade: dist
+
+    - name: Install base packages
+      apt:
+        name: "{{ base_packages }}"
+        state: present
+
+    - name: Set timezone to UTC
+      timezone:
+        name: UTC
+
+    - name: Ensure sudo is installed
+      apt:
+        name: sudo
+        state: present
+
+    - name: Create pathops group
+      group:
+        name: pathops
+        state: present
+
+    - name: Create pathops user
+      user:
+        name: pathops
+        group: pathops
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Add pathops user to sudoers (passwordless)
+      copy:
+        dest: /etc/sudoers.d/pathops
+        content: "pathops ALL=(ALL) NOPASSWD:ALL"
+        mode: '0440'
+
+    - name: Disable apt auto upgrades (for demo stability)
+      systemd:
+        name: unattended-upgrades
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Ensure SSH is enabled
+      service:
+        name: ssh
+        state: started
+        enabled: yes

@@ -1,19 +1,16 @@
-# vagrant/Vagrantfile
+# Vagrantfile
 require "yaml"
-require "erb"
 
-cfg = YAML.load_file(File.join(__dir__, "config", "vms.yml"))
+CFG_PATH = File.join(__dir__, "vagrant", "config", "vms.yml")
+cfg = YAML.load_file(CFG_PATH)
 
 Vagrant.configure("2") do |config|
   config.vm.box = cfg.dig("project", "ubuntu_box") || "bento/ubuntu-24.04"
-  config.vm.synced_folder "..", "/vagrant", disabled: true
 
   cfg["vms"].each do |vm|
     config.vm.define vm["name"] do |node|
       node.vm.hostname = vm["hostname"]
 
-      # NIC1: NAT (default) - internet
-      # NIC2: Host-only with fixed IP
       node.vm.network "private_network",
         ip: vm["ip"],
         virtualbox__intnet: false
@@ -24,12 +21,10 @@ Vagrant.configure("2") do |config|
         vb.memory = vm["memory"] || 2048
       end
 
-      # Bootstrap mínimo para que Ansible pueda entrar y para fijar netplan estable
       node.vm.provision "shell", inline: <<-SHELL
         set -euxo pipefail
         sudo apt-get update -y
         sudo apt-get install -y python3 python3-apt ca-certificates curl
-        # opcional: deshabilitar prompt de cloud-init y asegurar hostname
         echo "#{vm["hostname"]}" | sudo tee /etc/hostname
       SHELL
     end

@@ -7,3 +7,14 @@ repo-zip:
 	@find . -type f -not -path '*/.*' -print | zip -@ $(REPO_ZIP)
 	@echo "✅ Created $(REPO_ZIP)"
 	@echo ""
+up:
+	vagrant up
+
+halt:
+	vagrant halt
+
+destroy:
+	vagrant destroy -f
+
+provision:
+	cd ansible && ansible-playbook -i inventories/demo/hosts.ini playbooks/site.yml
