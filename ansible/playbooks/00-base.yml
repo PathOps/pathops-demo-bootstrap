@@ -59,12 +59,20 @@
         content: "pathops ALL=(ALL) NOPASSWD:ALL"
         mode: '0440'
 
-    - name: Disable apt auto upgrades (for demo stability)
-      systemd:
-        name: unattended-upgrades
-        state: stopped
-        enabled: no
-      ignore_errors: yes
+    - name: Disable unattended-upgrades if installed (for demo stability)
+      block:
+        - name: Check if unattended-upgrades service exists
+          command: systemctl list-unit-files unattended-upgrades.service
+          register: uu
+          changed_when: false
+          failed_when: false
+
+        - name: Stop and disable unattended-upgrades
+          systemd:
+            name: unattended-upgrades
+            state: stopped
+            enabled: no
+          when: uu.rc == 0
 
     - name: Ensure SSH is enabled
       service:

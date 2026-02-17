@@ -1,5 +1,15 @@
 pathops-demo-bootstrap.zip
 
+# Local secrets
+.env
+
+# Ansible vault files
+*.vault.yml
+.secrets/
+
+# OS
+.DS_Store
+
 ############################
 # VAGRANT
 ############################

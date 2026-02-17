@@ -24,4 +24,25 @@ destroy:
 	vagrant destroy -f
 
 provision:
-	cd ansible && ansible-playbook -i inventories/demo/hosts.ini playbooks/site.yml
+	ansible-playbook -i ansible/inventories/demo/hosts.ini ansible/playbooks/site.yml
+
+# -------------------------
+# Public Edge Gateway (DO)
+# -------------------------
+
+EDGE_DIR=infra/edge-gateway
+EDGE_INV=$(EDGE_DIR)/inventories/prod/hosts.ini
+EDGE_PLAY=$(EDGE_DIR)/playbooks/site.yml
+
+provision-edge:
+	@echo "🌍 Provisioning public edge gateway..."
+	@test -f $(EDGE_DIR)/.env || (echo "ERROR: missing $(EDGE_DIR)/.env (copy from .env.template)"; exit 1)
+	@set -a; . $(EDGE_DIR)/.env; set +a; \
+	test -n "$$EDGE_GATEWAY_IP" || (echo "ERROR: EDGE_GATEWAY_IP missing in .env"; exit 1); \
+	test -n "$$LE_EMAIL" || (echo "ERROR: LE_EMAIL missing in .env"; exit 1); \
+	test -n "$$DDNS_HOSTNAME" || (echo "ERROR: DDNS_HOSTNAME missing in .env"; exit 1); \
+	EDGE_GATEWAY_IP="$$EDGE_GATEWAY_IP" \
+	LE_EMAIL="$$LE_EMAIL" \
+	DDNS_HOSTNAME="$$DDNS_HOSTNAME" \
+	ansible-playbook -i $(EDGE_INV) $(EDGE_PLAY)
+	@echo "✅ Done"

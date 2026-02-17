@@ -1,0 +1,20 @@
+domain_apex: "demo.pathops.io"
+domain_wildcard: "*.demo.pathops.io"
+
+# Backend (DDNS)
+backend_host: "{{ lookup('env','DDNS_HOSTNAME') }}"
+
+backend_scheme: "https"
+backend_port: 443
+
+# Email Let's Encrypt
+letsencrypt_email: "{{ lookup('env','LE_EMAIL') }}"
+
+# Seguridad backend (self-signed en casa)
+backend_tls_insecure: true
+
+# Firewall
+ufw_allowed_ports:
+  - 22
+  - 80
+  - 443  

@@ -1,0 +1,327 @@
+---
+- name: PathOps Demo - Edge Nginx Reverse Proxy (one vhost per file)
+  hosts: edge
+  become: true
+
+  vars:
+    demo_domain: "demo.pathops.io"
+
+    ssl_dir: "/etc/nginx/ssl"
+    ssl_key: "{{ ssl_dir }}/{{ demo_domain }}.key"
+    ssl_crt: "{{ ssl_dir }}/{{ demo_domain }}.crt"
+    ssl_days: 3650  # ~10 años
+
+    health_root: "/var/www/health"
+
+    # Upstreams (host-only IPs)
+    upstream_gitlab: "192.168.56.12"
+    upstream_jenkins: "192.168.56.13"
+    upstream_shared: "192.168.56.14"
+    upstream_control_plane: "192.168.56.15"
+    upstream_apps: "192.168.56.16"
+
+    nginx_site_dir: "/etc/nginx/sites-available/pathops-demo"
+    nginx_enabled_dir: "/etc/nginx/sites-enabled"
+
+  tasks:
+    - name: Install nginx and openssl
+      apt:
+        name:
+          - nginx
+          - openssl
+        state: present
+        update_cache: yes
+
+    - name: Ensure directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ ssl_dir }}"
+        - "{{ nginx_site_dir }}"
+        - "{{ nginx_enabled_dir }}"
+        - "{{ health_root }}"
+
+    - name: Generate self-signed certificate (only if missing)
+      command: >
+        openssl req -x509 -nodes -newkey rsa:4096
+        -keyout {{ ssl_key }}
+        -out {{ ssl_crt }}
+        -days {{ ssl_days }}
+        -subj "/CN={{ demo_domain }}"
+        -addext "subjectAltName=DNS:{{ demo_domain }},DNS:*.{{ demo_domain }}"
+      args:
+        creates: "{{ ssl_crt }}"
+
+    - name: Restrict key permissions
+      file:
+        path: "{{ ssl_key }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Write health page
+      copy:
+        dest: "{{ health_root }}/index.html"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          <!doctype html>
+          <html>
+            <head><meta charset="utf-8"><title>PathOps Demo Edge</title></head>
+            <body style="font-family: sans-serif;">
+              <h1>✅ PathOps Demo Edge OK</h1>
+              <p>You reached <b>health.{{ demo_domain }}</b></p>
+              <p>Host: {{ inventory_hostname }}</p>
+            </body>
+          </html>
+
+    - name: Global tuning (timeouts, buffers, upload size, websocket map)
+      copy:
+        dest: /etc/nginx/conf.d/00-pathops-tuning.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # PathOps Demo - global proxy tuning
+
+          # Timeouts
+          proxy_connect_timeout 60s;
+          proxy_send_timeout    300s;
+          proxy_read_timeout    300s;
+          send_timeout          300s;
+
+          # Buffers
+          proxy_buffering   on;
+          proxy_buffers     16 64k;
+          proxy_buffer_size 128k;
+
+          # Uploads (default). Override per vhost if needed.
+          client_max_body_size 2g;
+
+          # Keep original host/proto/ip
+          proxy_set_header Host               $host;
+          proxy_set_header X-Real-IP          $remote_addr;
+          proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto  https;
+
+          # Websockets helper
+          map $http_upgrade $connection_upgrade {
+            default upgrade;
+            ''      close;
+          }
+      notify: Restart nginx
+
+    - name: 00 - HTTP -> HTTPS redirect (keeps port 80 only for redirect)
+      copy:
+        dest: "{{ nginx_site_dir }}/00-redirect-http.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+            listen 80;
+            server_name .{{ demo_domain }};
+            return 301 https://$host$request_uri;
+          }
+      notify: Restart nginx
+
+    - name: 10 - Health vhost
+      copy:
+        dest: "{{ nginx_site_dir }}/10-health.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+            listen 443 ssl;
+            server_name health.{{ demo_domain }};
+
+            ssl_certificate     {{ ssl_crt }};
+            ssl_certificate_key {{ ssl_key }};
+
+            location / {
+              root {{ health_root }};
+              index index.html;
+            }
+          }
+      notify: Restart nginx
+
+    - name: 20 - GitLab vhost
+      copy:
+        dest: "{{ nginx_site_dir }}/20-gitlab.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+            listen 443 ssl;
+            server_name gitlab.{{ demo_domain }};
+
+            ssl_certificate     {{ ssl_crt }};
+            ssl_certificate_key {{ ssl_key }};
+
+            # GitLab can upload big artifacts/LFS/imports
+            client_max_body_size 2g;
+
+            location / {
+              proxy_pass http://{{ upstream_gitlab }};
+              proxy_request_buffering off;
+              proxy_read_timeout 600s;
+              proxy_send_timeout 600s;
+            }
+          }
+      notify: Restart nginx
+
+    - name: 30 - Jenkins vhost
+      copy:
+        dest: "{{ nginx_site_dir }}/30-jenkins.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+            listen 443 ssl;
+            server_name jenkins.{{ demo_domain }};
+
+            ssl_certificate     {{ ssl_crt }};
+            ssl_certificate_key {{ ssl_key }};
+
+            client_max_body_size 512m;
+
+            location / {
+              proxy_pass http://{{ upstream_jenkins }}:8080;
+              proxy_http_version 1.1;
+              proxy_set_header Connection "";
+              proxy_read_timeout 600s;
+              proxy_send_timeout 600s;
+            }
+          }
+      notify: Restart nginx
+
+    - name: 40 - Shared vhosts (keycloak/harbor/minio/loki/grafana/argocd)
+      copy:
+        dest: "{{ nginx_site_dir }}/40-shared.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Shared services hosted on VM4
+          server {
+            listen 443 ssl;
+            server_name
+              keycloak.{{ demo_domain }}
+              harbor.{{ demo_domain }}
+              minio.{{ demo_domain }}
+              loki.{{ demo_domain }}
+              grafana.{{ demo_domain }}
+              argocd.{{ demo_domain }};
+
+            ssl_certificate     {{ ssl_crt }};
+            ssl_certificate_key {{ ssl_key }};
+
+            # Harbor/MinIO often need huge uploads. Use unlimited for demo.
+            # If you prefer limits: set e.g. 20g instead of 0.
+            client_max_body_size 0;
+
+            location / {
+              proxy_pass http://{{ upstream_shared }};
+              proxy_http_version 1.1;
+
+              # Websockets (Grafana/Argo)
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection $connection_upgrade;
+
+              # Large uploads
+              proxy_request_buffering off;
+
+              proxy_read_timeout 900s;
+              proxy_send_timeout 900s;
+            }
+          }
+      notify: Restart nginx
+
+    - name: 50 - Control Plane vhost
+      copy:
+        dest: "{{ nginx_site_dir }}/50-control-plane.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+            listen 443 ssl;
+            server_name control-plane.{{ demo_domain }};
+
+            ssl_certificate     {{ ssl_crt }};
+            ssl_certificate_key {{ ssl_key }};
+
+            client_max_body_size 128m;
+
+            location / {
+              proxy_pass http://{{ upstream_control_plane }};
+              proxy_read_timeout 300s;
+              proxy_send_timeout 300s;
+            }
+          }
+      notify: Restart nginx
+
+    - name: 99 - Wildcard apps vhost (keep last)
+      copy:
+        dest: "{{ nginx_site_dir }}/99-wildcard-apps.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+            listen 443 ssl;
+            server_name *.{{ demo_domain }};
+
+            ssl_certificate     {{ ssl_crt }};
+            ssl_certificate_key {{ ssl_key }};
+
+            client_max_body_size 256m;
+
+            location / {
+              proxy_pass http://{{ upstream_apps }};
+              proxy_read_timeout 300s;
+              proxy_send_timeout 300s;
+            }
+          }
+      notify: Restart nginx
+
+    - name: Enable vhosts (symlink all)
+      file:
+        src: "{{ nginx_site_dir }}/{{ item }}"
+        dest: "{{ nginx_enabled_dir }}/{{ item }}"       
+        state: link
+        force: true
+      loop:
+        - 00-redirect-http.conf
+        - 10-health.conf
+        - 20-gitlab.conf
+        - 30-jenkins.conf
+        - 40-shared.conf
+        - 50-control-plane.conf
+        - 99-wildcard-apps.conf
+
+    - name: Disable default site if present
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      ignore_errors: yes
+
+    - name: Validate nginx config
+      command: nginx -t
+      changed_when: false
+
+  handlers:
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
