@@ -1,8 +1,8 @@
 domain_apex: "demo.pathops.io"
 domain_wildcard: "*.demo.pathops.io"
 
-# Backend (DDNS)
-backend_host: "{{ lookup('env','DDNS_HOSTNAME') }}"
+# Edge Backend
+backend_host: "10.10.0.2"
 
 backend_scheme: "https"
 backend_port: 443
@@ -17,4 +17,30 @@ backend_tls_insecure: true
 ufw_allowed_ports:
   - 22
   - 80
-  - 443  
+  - 443
+
+# WireGroup    
+wg_iface: wg0
+wg_port: 51820
+wg_hub_address: "10.10.0.1/24"
+
+# Peers (solo public keys + allowed IPs)
+wg_peers:
+  - name: vm01-edge
+    public_key: "wlGQuL2mGcpIKt9aZDJLPHNqwg9Ds2xjV2x2y2nR7wM="
+    allowed_ip: "10.10.0.2/32"
+  - name: vm02-gitlab
+    public_key: "+N1VqZRv/Hhy0MbQJyuVlWWWYZ5EWFrcB055p0RKR2s="
+    allowed_ip: "10.10.0.3/32"
+  - name: vm03-jenkins
+    public_key: "b32lFqvKJ6vQSyjS2GjPf8+Vyov4xqBs1nPggG+KjXU="
+    allowed_ip: "10.10.0.4/32"
+  - name: vm04-k8s-shared
+    public_key: "apDVG064QnstHqRe+w4IOUZrAwugkvBivqwEo6y1CD0="
+    allowed_ip: "10.10.0.5/32"
+  - name: vm05-k8s-control-plane
+    public_key: "jAIZigbZj+Uje+qR2xAynU8ghaPfS6UPrMIkzFYmtBw="
+    allowed_ip: "10.10.0.6/32"
+  - name: vm06-k8s-apps
+    public_key: "6OSaB/f0jgrtGQkFYzp7VxtvngcqdRLUiLbJp4Sw9Tc="
+    allowed_ip: "10.10.0.7/32"

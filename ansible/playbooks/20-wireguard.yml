@@ -1,0 +1,12 @@
+---
+- name: Configure WireGuard peers (LAN VMs)
+  hosts: all
+  become: true
+
+  vars_files:
+    - ../group_vars/all.yml
+    - ../host_vars/{{ inventory_hostname }}.yml
+    - ../host_vars/{{ inventory_hostname }}_vault.yml
+
+  roles:
+    - wireguard

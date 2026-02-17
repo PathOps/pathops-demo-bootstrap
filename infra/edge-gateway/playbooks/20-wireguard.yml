@@ -1,0 +1,57 @@
+---
+- name: Configure WireGuard hub (droplet)
+  hosts: edge_gateway
+  become: true
+  
+  vars_files:
+    - ../group_vars/edge_gateway.yml
+    - ../group_vars/edge_gateway_vault.yml
+  
+  vars:
+    wg_port: 51820
+
+  tasks:
+    - name: Install WireGuard
+      apt:
+        name: wireguard
+        state: present
+        update_cache: yes
+
+    - name: Ensure wireguard directory exists
+      file:
+        path: /etc/wireguard
+        state: directory
+        mode: "0700"
+
+    - name: Deploy hub wg0.conf
+      copy:
+        dest: /etc/wireguard/wg0.conf
+        mode: "0600"
+        content: |
+          [Interface]
+          PrivateKey = {{ wg_private_key }}
+          Address = 10.10.0.1/24
+          ListenPort = {{ wg_port }}
+
+          {% for peer in wg_peers %}
+          [Peer]
+          PublicKey = {{ peer.public_key }}
+          AllowedIPs = {{ peer.allowed_ip }}
+          {% endfor %}
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        state: present
+        reload: yes
+
+    - name: Allow WireGuard UDP port in UFW
+      command: ufw allow {{ wg_port }}/udp
+      failed_when: false
+
+    - name: Enable and start WireGuard
+      systemd:
+        name: wg-quick@wg0
+        enabled: yes
+        state: restarted

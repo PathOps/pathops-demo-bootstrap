@@ -40,9 +40,7 @@ provision-edge:
 	@set -a; . $(EDGE_DIR)/.env; set +a; \
 	test -n "$$EDGE_GATEWAY_IP" || (echo "ERROR: EDGE_GATEWAY_IP missing in .env"; exit 1); \
 	test -n "$$LE_EMAIL" || (echo "ERROR: LE_EMAIL missing in .env"; exit 1); \
-	test -n "$$DDNS_HOSTNAME" || (echo "ERROR: DDNS_HOSTNAME missing in .env"; exit 1); \
 	EDGE_GATEWAY_IP="$$EDGE_GATEWAY_IP" \
 	LE_EMAIL="$$LE_EMAIL" \
-	DDNS_HOSTNAME="$$DDNS_HOSTNAME" \
 	ansible-playbook -i $(EDGE_INV) $(EDGE_PLAY)
 	@echo "✅ Done"

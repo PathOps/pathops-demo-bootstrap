@@ -1,0 +1,9 @@
+# WireGuard - comunes a todos los peers (VMs)
+wg_iface: wg0
+wg_network_cidr: "10.10.0.0/24"
+
+# Hub (droplet)
+wg_hub_ip: "10.10.0.1"
+wg_hub_endpoint: "24.144.86.214:51820"   # <- cambias solo aca cuando migres (Hetzner etc.)
+wg_hub_public_key: "exe6sCWMoC8ncqstAuUh8DhKFD7ePInNJKMzNWCjdyY="
+
