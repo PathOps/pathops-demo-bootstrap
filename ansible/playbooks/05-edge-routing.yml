@@ -1,0 +1,64 @@
+---
+- name: PathOps - Edge routing fix (eth2 for WAN replies)
+  hosts: edge
+  become: true
+
+  vars:
+    lan_ip: "192.168.1.90"
+    lan_gw: "192.168.1.1"
+    lan_dev: "eth2"
+    table_id: "100"
+
+  tasks:
+    - name: Ensure iproute2 is installed
+      apt:
+        name: iproute2
+        state: present
+        update_cache: yes
+
+    - name: Set rp_filter to loose (multi-NIC safe)
+      copy:
+        dest: /etc/sysctl.d/99-pathops-edge-routing.conf
+        content: |
+          net.ipv4.conf.all.rp_filter=2
+          net.ipv4.conf.default.rp_filter=2
+          net.ipv4.conf.{{ lan_dev }}.rp_filter=2
+        mode: "0644"
+
+    - name: Apply sysctl
+      command: sysctl --system
+      changed_when: false
+
+    - name: Install systemd unit to enforce routing on boot
+      copy:
+        dest: /etc/systemd/system/pathops-edge-routing.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=PathOps Edge Routing Fix (policy routing for WAN)
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/bin/sh -lc '\
+            set -e; \
+            ip rule del from {{ lan_ip }}/32 table {{ table_id }} 2>/dev/null || true; \
+            ip route flush table {{ table_id }} 2>/dev/null || true; \
+            ip rule add from {{ lan_ip }}/32 table {{ table_id }}; \
+            ip route add default via {{ lan_gw }} dev {{ lan_dev }} table {{ table_id }}; \
+            ip route replace default via {{ lan_gw }} dev {{ lan_dev }} metric 10; \
+            ip route replace default via 10.0.2.2 dev eth0 metric 200 2>/dev/null || true; \
+            ip route; ip rule; \
+          '
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and run routing service now
+      systemd:
+        name: pathops-edge-routing.service
+        enabled: yes
+        state: started
+        daemon_reload: yes

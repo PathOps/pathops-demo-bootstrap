@@ -1,5 +1,6 @@
 # ansible/playbooks/site.yml
 - import_playbook: 00-base.yml
+- import_playbook: 05-edge-routing.yml
 - import_playbook: 10-edge-nginx.yml
 #- import_playbook: 20-gitlab.yml
 #- import_playbook: 30-jenkins-docker.yml
