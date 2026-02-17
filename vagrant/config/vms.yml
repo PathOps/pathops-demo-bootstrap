@@ -11,6 +11,7 @@ vms:
   - name: vm01-edge
     hostname: edge
     ip: 192.168.56.11
+    lan_ip: 192.168.1.90
     cpus: 1
     memory: 1024
     disk_gb: 20 

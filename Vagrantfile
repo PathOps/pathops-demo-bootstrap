@@ -16,6 +16,17 @@ Vagrant.configure("2") do |config|
         ip: vm["ip"],
         virtualbox__intnet: false
 
+      # Bridged/Public SOLO para la VM edge (para que el router la vea)
+      if vm["name"] == "vm01-edge"
+        bridge_if = ENV["VAGRANT_BRIDGE_IF"] # opcional, recomendado
+        if bridge_if && !bridge_if.empty?
+          node.vm.network "public_network", bridge: bridge_if, ip: vm["lan_ip"]
+        else
+          # Si no pasás interfaz, Vagrant te va a preguntar cuál bridge usar
+          node.vm.network "public_network", ip: vm["lan_ip"]
+        end
+      end
+
       node.vm.provider "virtualbox" do |vb|
         vb.name = vm["name"]
         vb.cpus = vm["cpus"] || 2
