@@ -1,0 +1,58 @@
+---
+- name: Droplet - HAProxy TCP passthrough for GitLab SSH (22 -> vm02-gitlab:22 over WireGuard)
+  hosts: edge_gateway
+  become: true
+
+  vars_files:
+    - ../group_vars/edge_gateway.yml
+    - ../group_vars/edge_gateway_vault.yml
+
+  vars:
+    gitlab_wg_ip: "10.10.0.3"
+    gitlab_ssh_port: 22
+
+  tasks:
+    - name: Install HAProxy
+      apt:
+        name: haproxy
+        state: present
+        update_cache: yes
+
+    - name: Write HAProxy config (TCP 22 -> GitLab over WG)
+      copy:
+        dest: /etc/haproxy/haproxy.cfg
+        mode: "0644"
+        content: |
+          global
+            log /dev/log local0
+            log /dev/log local1 notice
+            daemon
+            maxconn 2048
+
+          defaults
+            log global
+            mode tcp
+            option tcplog
+            timeout connect 10s
+            timeout client  1h
+            timeout server  1h
+
+          frontend ssh_gitlab_in
+            bind *:22
+            default_backend ssh_gitlab_out
+
+          backend ssh_gitlab_out
+            server gitlab {{ gitlab_wg_ip }}:{{ gitlab_ssh_port }} check
+      notify: Restart haproxy
+
+    - name: Ensure HAProxy enabled and started
+      systemd:
+        name: haproxy
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Restart haproxy
+      service:
+        name: haproxy
+        state: restarted

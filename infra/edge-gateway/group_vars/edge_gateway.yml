@@ -3,18 +3,16 @@ domain_wildcard: "*.demo.pathops.io"
 
 # Edge Backend
 backend_host: "10.10.0.2"
-
 backend_scheme: "https"
 backend_port: 443
+backend_tls_insecure: true
 
 # Email Let's Encrypt
 letsencrypt_email: "{{ lookup('env','LE_EMAIL') }}"
 
-# Seguridad backend (self-signed en casa)
-backend_tls_insecure: true
-
 # Firewall
 ufw_allowed_ports:
+  - 2222
   - 22
   - 80
   - 443

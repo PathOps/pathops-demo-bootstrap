@@ -1,0 +1,56 @@
+---
+- name: Edge Gateway - Certbot wildcard (DNS-01)
+  hosts: edge_gateway
+  become: true
+
+  vars_files:
+    - ../group_vars/edge_gateway.yml
+    - ../group_vars/edge_gateway_vault.yml
+
+  vars:
+    cert_name: "{{ domain_apex }}"
+    le_live_dir: "/etc/letsencrypt/live/{{ cert_name }}"
+    do_creds_path: "/root/.secrets/certbot/digitalocean.ini"
+
+  tasks:
+    - name: Create certbot secrets dir
+      file:
+        path: "{{ do_creds_path | dirname }}"
+        state: directory
+        mode: "0700"
+
+    - name: Write DigitalOcean DNS token for certbot
+      copy:
+        dest: "{{ do_creds_path }}"
+        mode: "0600"
+        content: |
+          dns_digitalocean_token = {{ do_dns_token }}
+
+    - name: Obtain or renew wildcard certificate (keep until expiring)
+      command: >
+        certbot certonly
+        --cert-name {{ domain_apex }}
+        --non-interactive --agree-tos
+        --email {{ letsencrypt_email }}
+        --dns-digitalocean
+        --dns-digitalocean-credentials {{ do_creds_path }}
+        -d {{ domain_apex }}
+        -d {{ domain_wildcard }}
+        --keep-until-expiring
+      register: certbot_out
+      changed_when: "'Congratulations' in certbot_out.stdout"
+      failed_when: certbot_out.rc != 0
+
+    - name: Ensure certbot auto-renew timer enabled
+      systemd:
+        name: certbot.timer
+        enabled: yes
+        state: started
+
+    - name: Add renewal hook to reload nginx
+      copy:
+        dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+        mode: "0755"
+        content: |
+          #!/bin/bash
+          systemctl reload nginx

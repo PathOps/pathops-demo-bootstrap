@@ -1,0 +1,19 @@
+## Managed by Ansible (PathOps)
+external_url '{{ gitlab_external_url }}'
+
+# Keep resource usage reasonable for demo VMs.
+puma['worker_processes'] = {{ gitlab_puma_worker_processes | default(0) }}
+sidekiq['max_concurrency'] = {{ gitlab_sidekiq_max_concurrency | default(10) }}
+
+# Optional: If you are fronting GitLab with a reverse proxy (edge/haproxy/nginx),
+# you may want to set these so clone URLs render correctly.
+gitlab_rails['gitlab_host'] = '{{ gitlab_host }}'
+gitlab_rails['gitlab_ssh_host'] = '{{ gitlab_ssh_host }}'
+gitlab_rails['gitlab_shell_ssh_port'] = {{ gitlab_ssh_port }}
+
+# Disable Registry by default (can enable later for PathOps artifacts/images).
+registry['enable'] = {{ gitlab_registry_enable | default(false) | lower }}
+
+# NGINX inside GitLab (disable only if you terminate HTTP elsewhere)
+nginx['listen_port'] = {{ gitlab_http_listen_port | default(80) }}
+nginx['listen_https'] = {{ gitlab_https_enable | default(false) | lower }}

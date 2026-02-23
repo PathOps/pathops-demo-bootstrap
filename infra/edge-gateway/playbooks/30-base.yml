@@ -1,0 +1,35 @@
+---
+- name: Edge Gateway - Base (packages + ufw)
+  hosts: edge_gateway
+  become: true
+
+  vars_files:
+    - ../group_vars/edge_gateway.yml
+    - ../group_vars/edge_gateway_vault.yml
+
+  tasks:
+    - name: Ensure apt cache updated
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - nginx
+          - ufw
+          - certbot
+          - python3-certbot-dns-digitalocean
+          - haproxy
+        state: present
+
+    - name: Enable UFW (default deny)
+      ufw:
+        state: enabled
+        policy: deny
+
+    - name: Allow required ports
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+      loop: "{{ ufw_allowed_ports }}"

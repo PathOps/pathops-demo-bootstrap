@@ -1,0 +1,48 @@
+---
+- name: Ensure base dependencies are installed
+  ansible.builtin.apt:
+    name:
+      - curl
+      - openssh-server
+      - ca-certificates
+      - tzdata
+      - perl
+    state: present
+    update_cache: true
+
+- name: Add GitLab package repository (packagecloud script)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | bash
+  args:
+    executable: /bin/bash
+    creates: /etc/apt/sources.list.d/gitlab_gitlab-ce.list
+
+- name: Install GitLab CE
+  ansible.builtin.apt:
+    name: gitlab-ce
+    state: present
+    update_cache: true
+  environment:
+    EXTERNAL_URL: "{{ gitlab_external_url }}"
+
+- name: Render /etc/gitlab/gitlab.rb
+  ansible.builtin.template:
+    src: gitlab.rb.j2
+    dest: /etc/gitlab/gitlab.rb
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reconfigure GitLab
+
+- name: Ensure GitLab is running
+  ansible.builtin.command: gitlab-ctl status
+  register: gitlab_status
+  changed_when: false
+  failed_when: gitlab_status.rc != 0
+
+- name: Print how to retrieve initial root password (if needed)
+  ansible.builtin.debug:
+    msg:
+      - "If this is the first install, GitLab writes the initial root password to:"
+      - "  sudo cat /etc/gitlab/initial_root_password"

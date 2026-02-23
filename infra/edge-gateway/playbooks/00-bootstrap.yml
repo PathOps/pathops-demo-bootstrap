@@ -1,0 +1,8 @@
+---
+- import_playbook: 10-ssh.yml
+- import_playbook: 20-wireguard.yml
+- import_playbook: 30-base.yml
+- import_playbook: 31-certbot.yml
+- import_playbook: 32-nginx.yml
+- import_playbook: 40-haproxy-gitlab-ssh.yml
+- import_playbook: 99-verify.yml

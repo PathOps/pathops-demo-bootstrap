@@ -1,1 +1,7 @@
 wg_address: "10.10.0.3/32"
+
+# GitLab CE (Open Source) - PathOps demo
+gitlab_host: "gitlab.demo.pathops.io"
+gitlab_external_url: "https://gitlab.demo.pathops.io"
+gitlab_ssh_host: "gitlab.demo.pathops.io"
+gitlab_ssh_port: 22  

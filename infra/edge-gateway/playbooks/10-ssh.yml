@@ -1,4 +1,4 @@
-- name: Droplet - enable SSH on 2222 (keep 22)
+- name: Droplet - enable SSH on 2222 ONLY (free 22 for GitLab SSH passthrough)
   hosts: edge_gateway
   become: true
   gather_facts: true
@@ -6,7 +6,6 @@
 
   vars:
     admin_ssh_port: 2222
-    keep_port_22: true
 
   tasks:
     - name: Ensure sshd_config.d exists
@@ -15,24 +14,26 @@
         state: directory
         mode: "0755"
 
-    - name: Configure SSH ports (safe)
+    - name: Configure SSH to listen only on admin port (2222)
       copy:
         dest: /etc/ssh/sshd_config.d/20-pathops-admin-port.conf
         mode: "0644"
         content: |
           Port {{ admin_ssh_port }}
-          {% if keep_port_22 %}Port 22{% endif %}
+      notify: Restart SSH
 
     - name: Validate sshd config
       command: sshd -t
-
-    - name: Restart SSH service
-      service:
-        name: ssh
-        state: restarted
+      changed_when: false
 
     - name: Allow admin SSH port in UFW (if ufw installed)
       command: ufw allow {{ admin_ssh_port }}/tcp
       register: ufw_allow
       failed_when: false
       changed_when: "'Rules updated' in ufw_allow.stdout or 'Rule added' in ufw_allow.stdout"
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted

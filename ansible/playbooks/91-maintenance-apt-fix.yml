@@ -1,0 +1,54 @@
+---
+- name: Maintenance - Fix apt/dpkg broken state
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Stop unattended-upgrades (if running)
+      systemd:
+        name: unattended-upgrades
+        state: stopped
+        enabled: no
+      failed_when: false
+
+    - name: Kill stuck apt/dpkg processes (best effort)
+      shell: |
+        pkill -9 apt || true
+        pkill -9 apt-get || true
+        pkill -9 dpkg || true
+      changed_when: false
+
+    - name: Remove apt/dpkg locks (best effort)
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/dpkg/lock-frontend
+        - /var/lib/dpkg/lock
+        - /var/cache/apt/archives/lock
+      failed_when: false
+
+    - name: Reconfigure dpkg
+      command: dpkg --configure -a
+      register: dpkg_reconf
+      failed_when: false
+
+    - name: Fix broken dependencies
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+        state: present
+      failed_when: false
+
+    - name: Apt autoremove
+      apt:
+        autoremove: yes
+      failed_when: false
+
+    - name: Verify apt works
+      command: apt-get update
+      register: apt_verify
+      retries: 3
+      delay: 10
+      until: apt_verify is succeeded

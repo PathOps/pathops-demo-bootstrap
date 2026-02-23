@@ -23,10 +23,6 @@
         update_cache: yes
         cache_valid_time: 3600
 
-    - name: Upgrade system packages
-      apt:
-        upgrade: dist
-
     - name: Install base packages
       apt:
         name: "{{ base_packages }}"

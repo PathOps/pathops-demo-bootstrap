@@ -47,11 +47,13 @@
         reload: yes
 
     - name: Allow WireGuard UDP port in UFW
-      command: ufw allow {{ wg_port }}/udp
-      failed_when: false
+      ufw:
+        rule: allow
+        port: "{{ wg_port }}"
+        proto: udp
 
     - name: Enable and start WireGuard
       systemd:
         name: wg-quick@wg0
         enabled: yes
-        state: restarted
+        state: started

@@ -1,0 +1,71 @@
+---
+- name: Verify - Edge Gateway (on droplet)
+  hosts: edge_gateway
+  become: true
+
+  vars_files:
+    - ../group_vars/edge_gateway.yml
+    - ../group_vars/edge_gateway_vault.yml
+
+  vars:
+    gitlab_wg_ip: "10.10.0.3"
+    public_gitlab_host: "gitlab.{{ domain_apex }}"
+
+  tasks:
+    - name: Services running (nginx, haproxy)
+      command: systemctl is-active {{ item }}
+      loop:
+        - nginx
+        - haproxy
+      register: svc
+      changed_when: false
+      failed_when: svc.rc != 0
+
+    - name: Ports listening on droplet (22, 2222, 80, 443)
+      shell: |
+        ss -lnt | awk '{print $4}' | egrep ':(22|2222|80|443)$' >/dev/null
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: WireGuard up
+      command: wg show
+      changed_when: false
+
+    - name: GitLab reachable via WireGuard TCP/22
+      wait_for:
+        host: "{{ gitlab_wg_ip }}"
+        port: 22
+        timeout: 5
+
+    - name: HTTPS endpoint responds (TLS ok) from droplet
+      shell: |
+        curl -skI https://{{ public_gitlab_host }} | head -n 1 | egrep 'HTTP/(1.1|2) (200|301|302|401|403)'
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+- name: Verify - External (from controller)
+  hosts: edge_gateway
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/edge_gateway.yml
+
+  vars:
+    public_gitlab_host: "gitlab.{{ domain_apex }}"
+
+  tasks:
+    - name: Public HTTPS reachable from controller
+      wait_for:
+        host: "{{ public_gitlab_host }}"
+        port: 443
+        timeout: 10
+      delegate_to: localhost
+
+    - name: Public SSH reachable from controller
+      wait_for:
+        host: "{{ public_gitlab_host }}"
+        port: 22
+        timeout: 10
+      delegate_to: localhost

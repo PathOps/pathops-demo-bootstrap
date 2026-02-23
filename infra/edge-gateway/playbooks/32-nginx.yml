@@ -1,5 +1,5 @@
 ---
-- name: Public Edge Gateway - DO Droplet
+- name: Edge Gateway - NGINX (TLS + reverse proxy)
   hosts: edge_gateway
   become: true
 
@@ -10,75 +10,8 @@
   vars:
     cert_name: "{{ domain_apex }}"
     le_live_dir: "/etc/letsencrypt/live/{{ cert_name }}"
-    do_creds_path: "/root/.secrets/certbot/digitalocean.ini"
 
   tasks:
-
-  # -----------------------------
-  # System Hardening
-  # -----------------------------
-
-    - name: Ensure system updated
-      apt:
-        update_cache: yes
-        upgrade: dist
-
-    - name: Install base packages
-      apt:
-        name:
-          - nginx
-          - certbot
-          - python3-certbot-dns-digitalocean
-          - ufw
-        state: present
-    
-    - name: Configure UFW default deny
-      ufw:
-        state: enabled
-        policy: deny
-
-    - name: Allow required ports
-      ufw:
-        rule: allow
-        port: "{{ item }}"
-      loop: "{{ ufw_allowed_ports }}"
-
-  # -----------------------------
-  # Certbot DNS-01
-  # -----------------------------
-
-    - name: Create certbot secrets dir
-      file:
-        path: "{{ do_creds_path | dirname }}"
-        state: directory
-        mode: "0700"
-
-    - name: Write DO DNS credentials
-      copy:
-        dest: "{{ do_creds_path }}"
-        content: |
-          dns_digitalocean_token = {{ do_dns_token }}
-        mode: "0600"
-
-    - name: Obtain or renew wildcard certificate
-      command: >
-        certbot certonly
-        --cert-name {{ domain_apex }}
-        --non-interactive --agree-tos
-        --email {{ letsencrypt_email }}
-        --dns-digitalocean
-        --dns-digitalocean-credentials {{ do_creds_path }}
-        -d {{ domain_apex }}
-        -d {{ domain_wildcard }}
-        --keep-until-expiring
-      register: certbot_out
-      changed_when: "'Congratulations' in certbot_out.stdout"
-      failed_when: certbot_out.rc != 0
-
-  # -----------------------------
-  # NGINX CONFIG
-  # -----------------------------
-
     - name: Install nginx gateway config
       copy:
         dest: /etc/nginx/sites-available/pathops-edge.conf
@@ -113,17 +46,10 @@
             ssl_certificate_key {{ le_live_dir }}/privkey.pem;
 
             ssl_protocols TLSv1.2 TLSv1.3;
-            ssl_prefer_server_ciphers off;
 
-            ssl_session_cache shared:SSL:10m;
-            ssl_session_timeout 10m;
-
-            # HSTS (si querés; para demo lo podés dejar)
             add_header Strict-Transport-Security "max-age=31536000" always;
 
             client_max_body_size 0;
-
-            resolver 1.1.1.1 8.8.8.8 valid=10s ipv6=off;
 
             proxy_set_header Host              $host;
             proxy_set_header X-Real-IP         $remote_addr;
@@ -141,12 +67,10 @@
             location / {
               set $backend "{{ backend_host }}";
               proxy_pass {{ backend_scheme }}://$backend:{{ backend_port }};
-
-              {% if backend_scheme == "https" %}
-              proxy_ssl_server_name on;
+              
               {% if backend_tls_insecure %}
+              proxy_ssl_server_name on;
               proxy_ssl_verify off;
-              {% endif %}
               {% endif %}
             }
           }
@@ -169,19 +93,11 @@
       command: nginx -t
       changed_when: false
 
-    - name: Ensure certbot auto-renew timer enabled
+    - name: Ensure nginx enabled and started
       systemd:
-        name: certbot.timer
+        name: nginx
         enabled: yes
         state: started
-
-    - name: Add renewal hook to reload nginx
-      copy:
-        dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-        mode: "0755"
-        content: |
-          #!/bin/bash
-          systemctl reload nginx
 
   handlers:
     - name: Reload nginx
