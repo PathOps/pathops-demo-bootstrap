@@ -1,1 +1,3 @@
 wg_address: "10.10.0.4/32"
+
+jenkins_http_port: 8080

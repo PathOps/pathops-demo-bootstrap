@@ -8,6 +8,9 @@ repo-zip:
 	@echo "✅ Created $(REPO_ZIP)"
 	@echo ""
 
+export-chatgpt:
+	./scripts/export_repo_for_chatgpt.sh
+
 suspend:
 	vagrant suspend
 
