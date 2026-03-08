@@ -1,0 +1,8 @@
+---
+- name: PathOps - Install & bootstrap MicroK8s
+  hosts: microk8s
+  become: true
+  gather_facts: true
+
+  roles:
+    - microk8s

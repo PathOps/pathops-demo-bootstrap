@@ -1,0 +1,36 @@
+---
+- name: Check if MetalLB is enabled
+  ansible.builtin.command: /snap/bin/microk8s status --format yaml
+  register: mk8s_status
+  changed_when: false
+
+- name: Enable MetalLB (L2) if requested
+  ansible.builtin.command: "/snap/bin/microk8s enable metallb:{{ microk8s_metallb_range }}"
+  when:
+    - microk8s_enable_metallb | default(false) | bool
+    - "'metallb' not in (mk8s_status.stdout | lower)"
+  register: metallb_enable
+  changed_when: true
+  failed_when: false
+
+- name: Wait until traefik has an EXTERNAL-IP (MetalLB)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    for i in $(seq 1 60); do
+      ip=$(/snap/bin/microk8s kubectl -n ingress get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+      if [ -n "$ip" ]; then
+        echo "$ip"
+        exit 0
+      fi
+      sleep 2
+    done
+    echo "ERROR: traefik EXTERNAL-IP not assigned" >&2
+    exit 1
+  args:
+    executable: /bin/bash
+  register: traefik_lb_ip
+  changed_when: false
+
+- name: Set traefik LB ip fact for this host
+  ansible.builtin.set_fact:
+    microk8s_traefik_lb_ip: "{{ traefik_lb_ip.stdout | trim }}"

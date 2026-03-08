@@ -1,0 +1,86 @@
+---
+- name: Ensure openssl is installed
+  ansible.builtin.apt:
+    name: openssl
+    state: present
+    update_cache: true
+
+- name: Ensure TLS directory exists
+  ansible.builtin.file:
+    path: "{{ microk8s_tls_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Generate self-signed wildcard cert (long validity)
+  ansible.builtin.command: >
+    openssl req -x509 -newkey rsa:4096 -sha256 -nodes
+    -days {{ microk8s_tls_days }}
+    -keyout {{ microk8s_tls_dir }}/demo.pathops.io.key
+    -out {{ microk8s_tls_dir }}/demo.pathops.io.crt
+    -subj "/CN={{ microk8s_tls_cn }}"
+    -addext "subjectAltName={{ microk8s_tls_san }}"
+  args:
+    creates: "{{ microk8s_tls_dir }}/demo.pathops.io.crt"
+
+- name: Assert microk8s is installed
+  ansible.builtin.stat:
+    path: /snap/bin/microk8s
+  register: microk8s_bin
+
+- name: Fail if microk8s is missing
+  ansible.builtin.fail:
+    msg: "microk8s is not installed yet. Ensure install.yml runs before ingress_tls.yml."
+  when: not microk8s_bin.stat.exists
+
+- name: Check if ingress namespace exists
+  ansible.builtin.command: /snap/bin/microk8s kubectl get ns {{ microk8s_default_tls_namespace }}
+  register: ns_check
+  changed_when: false
+  failed_when: false
+
+- name: Create ingress namespace if missing
+  ansible.builtin.command: /snap/bin/microk8s kubectl create ns {{ microk8s_default_tls_namespace }}
+  when: ns_check.rc != 0
+  register: ns_create
+  changed_when: ns_create.rc == 0
+
+- name: Create or update default TLS secret for Traefik
+  ansible.builtin.shell: |
+    set -euo pipefail
+    /snap/bin/microk8s kubectl -n {{ microk8s_default_tls_namespace }} create secret tls {{ microk8s_default_tls_secret }} \
+      --cert={{ microk8s_tls_dir }}/demo.pathops.io.crt \
+      --key={{ microk8s_tls_dir }}/demo.pathops.io.key \
+      --dry-run=client -o yaml | /snap/bin/microk8s kubectl apply -f -
+  args:
+    executable: /bin/bash
+  register: tls_secret_apply
+  changed_when: "'created' in (tls_secret_apply.stdout | lower)"
+
+- name: Disable ingress addon (force reconfigure)
+  ansible.builtin.command: /snap/bin/microk8s disable ingress
+  when:
+    - microk8s_ingress_enable | bool
+    - microk8s_ingress_force_reconfigure | bool
+  register: ingress_disable
+  changed_when: "'Nothing to do' not in (ingress_disable.stdout | default(''))"
+  failed_when: false
+
+- name: Check enabled microk8s addons
+  ansible.builtin.command: /snap/bin/microk8s status --format yaml
+  register: microk8s_status_yaml
+  changed_when: false
+
+- name: Enable ingress addon with default TLS cert
+  ansible.builtin.command: >
+    /snap/bin/microk8s enable ingress
+    --default-ssl-certificate {{ microk8s_default_tls_namespace }}/{{ microk8s_default_tls_secret }}
+  when: "'ingress' not in (microk8s_status_yaml.stdout | default(''))"
+  register: ingress_enable
+  changed_when: true
+  failed_when: false
+
+- name: Verify ingress classes and svc
+  ansible.builtin.command: /snap/bin/microk8s kubectl get ingressclass,svc -A
+  changed_when: false

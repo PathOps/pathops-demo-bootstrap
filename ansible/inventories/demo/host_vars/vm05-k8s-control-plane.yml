@@ -1,0 +1,10 @@
+wg_address: "10.10.0.6/32"
+
+microk8s_addons:
+  - dns
+  - storage
+  - ingress
+
+microk8s_enable_metallb: true
+microk8s_metallb_range: "192.168.56.210-192.168.56.219"
+health_host: "health-vm05-k8s-control-plane.demo.pathops.io"

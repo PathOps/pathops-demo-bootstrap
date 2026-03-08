@@ -1,0 +1,48 @@
+---
+- name: Install snapd
+  ansible.builtin.apt:
+    name: snapd
+    state: present
+    update_cache: true
+
+- name: Ensure snapd service is running
+  ansible.builtin.service:
+    name: snapd
+    state: started
+    enabled: true
+
+- name: Install MicroK8s via snap
+  community.general.snap:
+    name: microk8s
+    classic: true
+    channel: "{{ microk8s_snap_channel | default('latest/stable') }}"
+
+- name: Ensure microk8s binary exists
+  ansible.builtin.stat:
+    path: /snap/bin/microk8s
+  register: microk8s_bin
+
+- name: Fail if microk8s binary is missing
+  ansible.builtin.fail:
+    msg: "microk8s binary not found at /snap/bin/microk8s (snap install may have failed)."
+  when: not microk8s_bin.stat.exists
+
+- name: Ensure microk8s group exists
+  ansible.builtin.group:
+    name: microk8s
+    state: present
+
+- name: Add user to microk8s group
+  ansible.builtin.user:
+    name: "{{ microk8s_user | default(ansible_user | default('vagrant')) }}"
+    groups: microk8s
+    append: true
+    
+- name: Start MicroK8s
+  ansible.builtin.command: /snap/bin/microk8s start
+  changed_when: false
+  failed_when: false
+
+- name: Wait for MicroK8s to be ready
+  ansible.builtin.command: /snap/bin/microk8s status --wait-ready
+  changed_when: false

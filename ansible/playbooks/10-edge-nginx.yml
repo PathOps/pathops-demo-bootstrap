@@ -6,6 +6,10 @@
   vars:
     demo_domain: "demo.pathops.io"
 
+    traefik_lb_shared: "{{ hostvars['vm04-k8s-shared'].microk8s_traefik_lb_ip | default('') }}"
+    traefik_lb_cp:     "{{ hostvars['vm05-k8s-control-plane'].microk8s_traefik_lb_ip | default('') }}"
+    traefik_lb_apps:   "{{ hostvars['vm06-k8s-apps'].microk8s_traefik_lb_ip | default('') }}"
+    
     ssl_dir: "/etc/nginx/ssl"
     ssl_key: "{{ ssl_dir }}/{{ demo_domain }}.key"
     ssl_crt: "{{ ssl_dir }}/{{ demo_domain }}.crt"
@@ -24,6 +28,18 @@
     nginx_enabled_dir: "/etc/nginx/sites-enabled"
 
   tasks:
+    - name: Assert Traefik LB IPs are available
+      ansible.builtin.assert:
+        that:
+          - traefik_lb_shared | length > 0
+          - traefik_lb_cp | length > 0
+          - traefik_lb_apps | length > 0
+        fail_msg: |
+          Missing Traefik MetalLB IP(s).
+          traefik_lb_shared='{{ traefik_lb_shared }}'
+          traefik_lb_cp='{{ traefik_lb_cp }}'
+          traefik_lb_apps='{{ traefik_lb_apps }}'
+          Ensure 40-microk8s.yml runs before 10-edge-nginx.yml and that MetalLB assigned EXTERNAL-IP to svc/traefik.  
     - name: Install nginx and openssl
       apt:
         name:
@@ -231,7 +247,8 @@
               minio.{{ demo_domain }}
               loki.{{ demo_domain }}
               grafana.{{ demo_domain }}
-              argocd.{{ demo_domain }};
+              argocd.{{ demo_domain }}
+              health-vm04-k8s-shared.{{ demo_domain }};
 
             ssl_certificate     {{ ssl_crt }};
             ssl_certificate_key {{ ssl_key }};
@@ -241,7 +258,15 @@
             client_max_body_size 0;
 
             location / {
-              proxy_pass http://{{ upstream_shared }};
+
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+              proxy_pass https://{{ traefik_lb_shared }}:443;
+              proxy_ssl_server_name on;
+              proxy_ssl_verify off;
+
               proxy_http_version 1.1;
 
               # Websockets (Grafana/Argo)
@@ -266,7 +291,9 @@
         content: |
           server {
             listen 443 ssl;
-            server_name control-plane.{{ demo_domain }};
+            server_name
+              control-plane.{{ demo_domain }}
+              health-vm05-k8s-control-plane.{{ demo_domain }};
 
             ssl_certificate     {{ ssl_crt }};
             ssl_certificate_key {{ ssl_key }};
@@ -274,7 +301,16 @@
             client_max_body_size 128m;
 
             location / {
-              proxy_pass http://{{ upstream_control_plane }};
+
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+              proxy_pass https://{{ traefik_lb_cp }}:443;
+
+              proxy_ssl_server_name on;
+              proxy_ssl_verify off;
+
               proxy_read_timeout 300s;
               proxy_send_timeout 300s;
             }
@@ -298,7 +334,16 @@
             client_max_body_size 256m;
 
             location / {
-              proxy_pass http://{{ upstream_apps }};
+
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+              proxy_pass https://{{ traefik_lb_apps }}:443;
+
+              proxy_ssl_server_name on;
+              proxy_ssl_verify off;
+
               proxy_read_timeout 300s;
               proxy_send_timeout 300s;
             }

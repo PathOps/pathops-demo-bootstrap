@@ -1,0 +1,23 @@
+---
+# Canal snap (podés pinnear a "1.29/stable" si querés reproducibilidad estricta)
+microk8s_snap_channel: "latest/stable"
+
+# Addons base (se puede extender por host/group)
+microk8s_addons: ["dns", "storage"]
+
+# Usuario a habilitar para microk8s (en demo usás ansible_user=vagrant)
+microk8s_user: "{{ ansible_user | default('vagrant') }}"
+
+microk8s_ingress_enable: true
+
+# Cert wildcard para Traefik (default TLS)
+microk8s_tls_dir: /etc/pathops/tls
+microk8s_tls_cn: "*.demo.pathops.io"
+microk8s_tls_san: "DNS:*.demo.pathops.io,DNS:demo.pathops.io"
+microk8s_tls_days: 10950
+
+microk8s_default_tls_namespace: ingress
+microk8s_default_tls_secret: pathops-default-tls
+
+# Para bootstrap: re-aplica el addon con disable/enable para asegurar el flag
+microk8s_ingress_force_reconfigure: false
