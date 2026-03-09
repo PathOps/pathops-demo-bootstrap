@@ -1,27 +1,15 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-OUTPUT="repo_dump.md"
+REPO_NAME="$(basename "$(git rev-parse --show-toplevel)" | tr '.' '-')"
+OUTPUT="${REPO_NAME}_dump.txt"
 
-echo "# Repository Export" > "$OUTPUT"
-echo "" >> "$OUTPUT"
-
-git ls-files | while read file; do
-  if file --mime "$file" | grep -q text; then
-    
-    EXT="${file##*.}"
-    
-    echo "---" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    echo "## 📄 $file" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    echo "\`\`\`$EXT" >> "$OUTPUT"
-    cat "$file" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    echo "\`\`\`" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    
+git ls-files | while read -r file; do
+  if file --mime "$file" | grep -q 'charset='; then
+    echo "===== FILE: $file ====="
+    cat "$file"
+    echo
   fi
-done
+done > "$OUTPUT"
 
-echo "Export completed → $OUTPUT"
+echo "Export completed -> $OUTPUT"
