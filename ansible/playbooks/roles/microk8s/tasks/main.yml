@@ -1,5 +1,7 @@
 ---
 - import_tasks: install.yml
+- import_tasks: addons.yml
+
 - import_tasks: ingress_tls.yml
   when: microk8s_ingress_enable | bool
 

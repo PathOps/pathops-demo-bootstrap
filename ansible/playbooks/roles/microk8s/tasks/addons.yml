@@ -1,0 +1,10 @@
+---
+- name: Enable generic MicroK8s addons except ingress/metallb
+  ansible.builtin.command: "/snap/bin/microk8s enable {{ item }}"
+  loop: "{{ microk8s_addons | default([]) }}"
+  when:
+    - item not in ['ingress', 'metallb']
+  register: microk8s_enable_addons
+  changed_when: >
+    'Nothing to do for' not in (microk8s_enable_addons.stdout | default('')) and
+    'is already enabled' not in (microk8s_enable_addons.stdout | default(''))
