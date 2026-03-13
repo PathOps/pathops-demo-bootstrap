@@ -247,6 +247,7 @@
               minio.{{ demo_domain }}
               loki.{{ demo_domain }}
               grafana.{{ demo_domain }}
+              vault.{{ demo_domain }}
               argocd.{{ demo_domain }}
               health-vm04-k8s-shared.{{ demo_domain }};
 
