@@ -1,5 +1,7 @@
 # make repo-zip
 REPO_ZIP=pathops-demo-bootstrap.zip
+VAGRANT_BRIDGE_IF ?= wlxb019218015aa
+export VAGRANT_BRIDGE_IF
 
 repo-zip:
 	@echo "📦 Creating repository zip..."
@@ -18,6 +20,7 @@ resume:
 	vagrant resume
 
 up:
+	@echo "Using bridge: $(VAGRANT_BRIDGE_IF)"
 	vagrant up
 
 halt:
