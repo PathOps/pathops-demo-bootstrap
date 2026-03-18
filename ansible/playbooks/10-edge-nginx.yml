@@ -245,6 +245,7 @@
               keycloak.{{ demo_domain }}
               harbor.{{ demo_domain }}
               minio.{{ demo_domain }}
+              minio-console.{{ demo_domain }}
               loki.{{ demo_domain }}
               grafana.{{ demo_domain }}
               vault.{{ demo_domain }}
