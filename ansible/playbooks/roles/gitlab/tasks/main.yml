@@ -35,6 +35,9 @@
     mode: "0644"
   notify: Reconfigure GitLab
 
+- name: Include GitLab SSO tasks
+  ansible.builtin.import_tasks: sso.yml
+
 - name: Ensure GitLab is running
   ansible.builtin.command: gitlab-ctl status
   register: gitlab_status

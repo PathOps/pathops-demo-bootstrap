@@ -1,0 +1,17 @@
+---
+- name: Render PathOps SSO config fragment
+  ansible.builtin.template:
+    src: pathops-sso.rb.j2
+    dest: /etc/gitlab/pathops-sso.rb
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Reconfigure GitLab
+
+- name: Ensure gitlab.rb includes PathOps SSO fragment
+  ansible.builtin.lineinfile:
+    path: /etc/gitlab/gitlab.rb
+    regexp: '^from_file "/etc/gitlab/pathops-sso.rb"$'
+    line: 'from_file "/etc/gitlab/pathops-sso.rb"'
+    insertafter: EOF
+  notify: Reconfigure GitLab
