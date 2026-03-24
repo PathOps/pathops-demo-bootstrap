@@ -7,32 +7,46 @@
     group: jenkins
     mode: "0755"
 
-- name: Download Jenkins commons-text-api plugin
+- name: Download Jenkins plugin manager tool
   ansible.builtin.get_url:
-    url: https://updates.jenkins.io/download/plugins/commons-text-api/1.15.0-218.va_61573470393/commons-text-api.hpi
-    dest: /var/lib/jenkins/plugins/commons-text-api.jpi
-    owner: jenkins
-    group: jenkins
+    url: https://github.com/jenkinsci/plugin-installation-manager-tool/releases/download/2.14.0/jenkins-plugin-manager-2.14.0.jar
+    dest: /usr/local/lib/jenkins-plugin-manager.jar
+    owner: root
+    group: root
     mode: "0644"
+
+- name: Remove manually managed Jenkins OIDC/JCasC plugins
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/jenkins/plugins/oic-auth.jpi
+    - /var/lib/jenkins/plugins/oic-auth.hpi
+    - /var/lib/jenkins/plugins/configuration-as-code.jpi
+    - /var/lib/jenkins/plugins/configuration-as-code.hpi
+    - /var/lib/jenkins/plugins/commons-text-api.jpi
+    - /var/lib/jenkins/plugins/commons-text-api.hpi
   notify: Restart Jenkins
 
-- name: Download Jenkins configuration-as-code plugin
-  ansible.builtin.get_url:
-    url: https://updates.jenkins.io/latest/configuration-as-code.hpi
-    dest: /var/lib/jenkins/plugins/configuration-as-code.jpi
-    owner: jenkins
-    group: jenkins
-    mode: "0644"
+- name: Install Jenkins OIDC/JCasC plugins with dependency resolution
+  ansible.builtin.command: >
+    java -jar /usr/local/lib/jenkins-plugin-manager.jar
+    --war /usr/share/java/jenkins.war
+    --plugin-download-directory /var/lib/jenkins/plugins
+    --plugins "configuration-as-code oic-auth"
+  register: jenkins_plugin_install
+  changed_when: >
+    'Done' in (jenkins_plugin_install.stdout | default('')) or
+    'Installed plugin' in (jenkins_plugin_install.stdout | default(''))
   notify: Restart Jenkins
 
-- name: Download Jenkins oic-auth plugin
-  ansible.builtin.get_url:
-    url: https://updates.jenkins.io/download/plugins/oic-auth/4.668.v653c6b_c6cb_f5/oic-auth.hpi
-    dest: /var/lib/jenkins/plugins/oic-auth.jpi
+- name: Ensure Jenkins plugins ownership
+  ansible.builtin.file:
+    path: /var/lib/jenkins/plugins
+    state: directory
+    recurse: true
     owner: jenkins
     group: jenkins
-    mode: "0644"
-  notify: Restart Jenkins
 
 - name: Ensure Jenkins JCasC directory exists
   ansible.builtin.file:

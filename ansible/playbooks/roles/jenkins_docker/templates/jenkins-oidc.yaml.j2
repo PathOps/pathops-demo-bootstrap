@@ -5,10 +5,13 @@ jenkins:
     oic:
       clientId: "{{ jenkins_oidc_client_id }}"
       clientSecret: "{{ jenkins_oidc_client_secret }}"
-      wellKnownOpenIDConfigurationUrl: "{{ jenkins_keycloak_issuer }}/.well-known/openid-configuration"
+      serverConfiguration:
+        wellKnown:
+          wellKnownOpenIDConfigurationUrl: "{{ jenkins_keycloak_issuer }}/.well-known/openid-configuration"
+          scopesOverride: "{{ jenkins_oidc_scopes | join(' ') }}"
       userNameField: "preferred_username"
       fullNameFieldName: "name"
-      scopes: "{{ jenkins_oidc_scopes | join(' ') }}"
+      emailFieldName: "email"
 
   authorizationStrategy:
     loggedInUsersCanDoAnything:
