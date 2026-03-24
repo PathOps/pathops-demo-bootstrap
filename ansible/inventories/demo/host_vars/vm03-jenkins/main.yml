@@ -1,0 +1,20 @@
+wg_address: "10.10.0.4/32"
+
+jenkins_http_port: 8080
+
+jenkins_host: "jenkins.demo.pathops.io"
+jenkins_root_url: "https://jenkins.demo.pathops.io/"
+
+jenkins_keycloak_issuer: "https://keycloak.demo.pathops.io/realms/pathops"
+jenkins_oidc_client_id: "jenkins"
+
+jenkins_oidc_scopes:
+  - "openid"
+  - "profile"
+  - "email"
+
+jenkins_escape_hatch_enabled: true
+jenkins_escape_hatch_username: "admin"
+
+jenkins_oidc_client_secret: "{{ vault_jenkins_oidc_client_secret }}"
+jenkins_escape_hatch_secret: "{{ vault_jenkins_escape_hatch_secret }}"

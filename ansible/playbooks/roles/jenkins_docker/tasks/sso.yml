@@ -1,0 +1,73 @@
+---
+- name: Ensure Jenkins plugins directory exists
+  ansible.builtin.file:
+    path: /var/lib/jenkins/plugins
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: "0755"
+
+- name: Download Jenkins commons-text-api plugin
+  ansible.builtin.get_url:
+    url: https://updates.jenkins.io/download/plugins/commons-text-api/1.15.0-218.va_61573470393/commons-text-api.hpi
+    dest: /var/lib/jenkins/plugins/commons-text-api.jpi
+    owner: jenkins
+    group: jenkins
+    mode: "0644"
+  notify: Restart Jenkins
+
+- name: Download Jenkins configuration-as-code plugin
+  ansible.builtin.get_url:
+    url: https://updates.jenkins.io/latest/configuration-as-code.hpi
+    dest: /var/lib/jenkins/plugins/configuration-as-code.jpi
+    owner: jenkins
+    group: jenkins
+    mode: "0644"
+  notify: Restart Jenkins
+
+- name: Download Jenkins oic-auth plugin
+  ansible.builtin.get_url:
+    url: https://updates.jenkins.io/download/plugins/oic-auth/4.668.v653c6b_c6cb_f5/oic-auth.hpi
+    dest: /var/lib/jenkins/plugins/oic-auth.jpi
+    owner: jenkins
+    group: jenkins
+    mode: "0644"
+  notify: Restart Jenkins
+
+- name: Ensure Jenkins JCasC directory exists
+  ansible.builtin.file:
+    path: /var/lib/jenkins/casc_configs
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: "0755"
+
+- name: Render Jenkins OIDC JCasC config
+  ansible.builtin.template:
+    src: jenkins-oidc.yaml.j2
+    dest: /var/lib/jenkins/casc_configs/jenkins-oidc.yaml
+    owner: jenkins
+    group: jenkins
+    mode: "0600"
+  notify: Restart Jenkins
+
+- name: Ensure systemd override directory for Jenkins exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/jenkins.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure Jenkins CASC_JENKINS_CONFIG via systemd override
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/jenkins.service.d/casc.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Service]
+      Environment="CASC_JENKINS_CONFIG=/var/lib/jenkins/casc_configs/jenkins-oidc.yaml"
+  notify:
+    - Reload systemd
+    - Restart Jenkins

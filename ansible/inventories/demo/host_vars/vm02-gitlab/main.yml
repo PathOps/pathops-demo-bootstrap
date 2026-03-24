@@ -1,0 +1,11 @@
+wg_address: "10.10.0.3/32"
+
+# GitLab CE (Open Source) - PathOps demo
+gitlab_host: "gitlab.demo.pathops.io"
+gitlab_external_url: "https://gitlab.demo.pathops.io"
+gitlab_ssh_host: "gitlab.demo.pathops.io"
+gitlab_ssh_port: 22  
+
+gitlab_keycloak_issuer: "https://keycloak.demo.pathops.io/realms/pathops"
+gitlab_oidc_client_id: "gitlab"
+gitlab_oidc_client_secret: "{{ vault_gitlab_oidc_client_secret }}"

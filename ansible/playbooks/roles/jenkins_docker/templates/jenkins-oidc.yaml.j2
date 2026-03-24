@@ -1,0 +1,19 @@
+jenkins:
+  systemMessage: "PathOps demo Jenkins"
+
+  securityRealm:
+    oic:
+      clientId: "{{ jenkins_oidc_client_id }}"
+      clientSecret: "{{ jenkins_oidc_client_secret }}"
+      wellKnownOpenIDConfigurationUrl: "{{ jenkins_keycloak_issuer }}/.well-known/openid-configuration"
+      userNameField: "preferred_username"
+      fullNameFieldName: "name"
+      scopes: "{{ jenkins_oidc_scopes | join(' ') }}"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: "{{ jenkins_root_url }}"

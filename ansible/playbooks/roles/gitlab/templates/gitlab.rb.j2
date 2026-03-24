@@ -17,3 +17,6 @@ registry['enable'] = {{ gitlab_registry_enable | default(false) | lower }}
 # NGINX inside GitLab (disable only if you terminate HTTP elsewhere)
 nginx['listen_port'] = {{ gitlab_http_listen_port | default(80) }}
 nginx['listen_https'] = {{ gitlab_https_enable | default(false) | lower }}
+
+## PathOps SSO fragment
+from_file "/etc/gitlab/pathops-sso.rb"

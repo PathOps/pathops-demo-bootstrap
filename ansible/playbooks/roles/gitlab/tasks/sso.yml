@@ -7,11 +7,3 @@
     group: root
     mode: "0600"
   notify: Reconfigure GitLab
-
-- name: Ensure gitlab.rb includes PathOps SSO fragment
-  ansible.builtin.lineinfile:
-    path: /etc/gitlab/gitlab.rb
-    regexp: '^from_file "/etc/gitlab/pathops-sso.rb"$'
-    line: 'from_file "/etc/gitlab/pathops-sso.rb"'
-    insertafter: EOF
-  notify: Reconfigure GitLab

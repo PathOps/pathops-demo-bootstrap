@@ -100,3 +100,5 @@
     msg: "Docker socket /var/run/docker.sock not found; docker service may not be running."
   when: not docker_sock.stat.exists
 
+- name: Include Jenkins SSO tasks
+  ansible.builtin.import_tasks: sso.yml
