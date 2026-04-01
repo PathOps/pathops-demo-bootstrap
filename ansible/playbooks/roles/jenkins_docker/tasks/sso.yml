@@ -28,12 +28,12 @@
     - /var/lib/jenkins/plugins/commons-text-api.hpi
   notify: Restart Jenkins
 
-- name: Install Jenkins OIDC/JCasC plugins with dependency resolution
+- name: Install Jenkins OIDC/JCasC/RBAC plugins with dependency resolution
   ansible.builtin.command: >
     java -jar /usr/local/lib/jenkins-plugin-manager.jar
     --war /usr/share/java/jenkins.war
     --plugin-download-directory /var/lib/jenkins/plugins
-    --plugins "configuration-as-code oic-auth"
+    --plugins "configuration-as-code oic-auth role-strategy"
   register: jenkins_plugin_install
   changed_when: >
     'Done' in (jenkins_plugin_install.stdout | default('')) or

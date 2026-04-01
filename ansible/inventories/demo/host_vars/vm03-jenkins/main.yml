@@ -13,6 +13,8 @@ jenkins_oidc_scopes:
   - "profile"
   - "email"
 
+jenkins_admin_username: "pathops-admin"
+
 jenkins_escape_hatch_enabled: true
 jenkins_escape_hatch_username: "admin"
 

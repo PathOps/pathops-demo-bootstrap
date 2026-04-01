@@ -1,6 +1,10 @@
 jenkins:
   systemMessage: "PathOps demo Jenkins"
 
+  projectNamingStrategy:
+    roleBased:
+      forceExistingJobs: true
+
   securityRealm:
     oic:
       clientId: "{{ jenkins_oidc_client_id }}"
@@ -14,8 +18,28 @@ jenkins:
       emailFieldName: "email"
 
   authorizationStrategy:
-    loggedInUsersCanDoAnything:
-      allowAnonymousRead: false
+    roleBased:
+      roles:
+        global:
+          - name: "admin"
+            description: "Jenkins administrators"
+            permissions:
+              - "Overall/Administer"
+            entries:
+              - user: "{{ jenkins_admin_username }}"
+
+          - name: "developer"
+            description: "Authenticated developers"
+            permissions:
+              - "Overall/Read"
+              - "Job/Create"
+              - "Job/Read"
+              - "Job/Discover"
+              - "Job/Build"
+              - "Job/Cancel"
+              - "View/Read"
+            entries:
+              - group: "authenticated"
 
 unclassified:
   location:
