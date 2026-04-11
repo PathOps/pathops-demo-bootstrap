@@ -304,6 +304,7 @@
             listen 443 ssl;
             server_name
               control-plane.{{ demo_domain }}
+              pgadmin.{{ demo_domain }}
               health-vm05-k8s-control-plane.{{ demo_domain }};
 
             ssl_certificate     {{ ssl_crt }};
